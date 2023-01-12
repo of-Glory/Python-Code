@@ -7,6 +7,13 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
 
+def NtoC(num):
+    color = [0,0,0]
+    if num == 5 or num <= 1: color[0] = 1
+    if num >= 3: color[1] = 1
+    if 3 >= num >= 1: color[2] = 1
+    return color
+
 cred = credentials.Certificate("gesture-d7295-firebase-adminsdk-m4t20-5dc3cd1a5c.json")
 firebase_admin.initialize_app(cred,{
     'databaseURL' : 'https://gesture-d7295-default-rtdb.firebaseio.com/' 
@@ -19,14 +26,16 @@ mp_drawing_styles = mp.solutions.drawing_styles
 temp = []
 temp.append(0), temp.append(0), temp.append(0), temp.append(0)
 t_x = t_y = -1
-isOn = isPlay = False
-volume = 0
+isOn = isColor = False
+rgb = 0
 
 dir = db.reference()
 dir.update({'Kon':0})
 dir.update({'Switch':0})
-dir.update({'Volume':0})
-dir.update({'Play':0})
+dir.update({'Red':1})
+dir.update({'Green':0})
+dir.update({'Blue':0})
+dir.update({'Color':0})
 
 cap = cv2.VideoCapture(0)
 
@@ -67,7 +76,7 @@ with mp_hands.Hands(
                 p_y = hand_landmarks.landmark[20].y*image_height
 
                 if int(i_x)+100 >= int(m_x) >= int(i_x)-100 and int(i_y)+50 >= int(m_y) >= int(i_y)-50:
-                    if t_y-10 > i_y:
+                    if t_y-5 > i_y:
                         if isOn: temp[0]=0
                         else:
                             temp[0] += 1
@@ -77,7 +86,7 @@ with mp_hands.Hands(
                                 isOn = True
                                 dir.update({'Switch':1})
 
-                    elif t_y+10 < i_y:
+                    elif t_y+5 < i_y:
                         if not isOn: temp[0]=0
                         else:
                             temp[0] -= 1
@@ -91,30 +100,38 @@ with mp_hands.Hands(
                         temp[1] += 1
                         if temp[1] > 7:
                             temp[1] = 0
-                            if volume: volume -= 1
-                            print(f'volume down : {volume}\n')
-                            dir.update({'Volume':volume})
+                            if rgb: rgb -= 1
+                            else: rgb=5
+                            c = NtoC(rgb)
+                            print(f'change color : {c}\n')
+                            dir.update({'Red':c[0]})
+                            dir.update({'Green':c[1]})
+                            dir.update({'Blue':c[2]})
 
                     elif t_x+10 < i_x:
                         temp[1] -= 1
                         if temp[1] < -7:
                             temp[1] = 0
-                            if volume<10: volume += 1
-                            print(f'volume up : {volume}\n')
-                            dir.update({'Volume':volume})
+                            if rgb<5: rgb += 1
+                            else: rgb=0
+                            c = NtoC(rgb)
+                            print(f'change color : {c}\n')
+                            dir.update({'Red':c[0]})
+                            dir.update({'Green':c[1]})
+                            dir.update({'Blue':c[2]})
 
                     elif int(th_y)+50 >= int(i_y) >= int(th_y)-50 and int(th_x)+10 >= int(i_x) >= int(th_x)-10:
                         temp[2] += 1
-                        if isPlay and temp[2]>9:
-                            print("pause\n")
-                            isPlay = False
+                        if isColor and temp[2]>9:
+                            print("white\n")
+                            isColor = False
                             temp[2] = 0
-                            dir.update({'Play':0})
-                        elif not isPlay and temp[2]>9:
-                            print("play\n")
-                            isPlay = True
+                            dir.update({'Color':0})
+                        elif not isColor and temp[2]>9:
+                            print("color\n")
+                            isColor = True
                             temp[2] = 0
-                            dir.update({'Play':1})
+                            dir.update({'Color':1})
 
                 if int(th_y)+50 >= int(m_y) >= int(th_y)-50 and int(th_y)+50 >= int(r_y) >= int(th_y)-50 and not int(th_y)+100 >= int(i_y) >= int(th_y)-250 and not int(th_y)+100 >= int(p_y) >= int(th_y)-250:
                     print("콩.")
